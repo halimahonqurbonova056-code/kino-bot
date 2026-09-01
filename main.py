@@ -118,12 +118,11 @@ async def check_callback(callback: types.CallbackQuery):
         await callback.message.answer("🎉 Rahmat! Obuna tasdiqlandi. Kino kodini yoki nomini yuborishingiz mumkin.", reply_markup=get_user_keyboard())
     else:
         await callback.answer("❌ Siz hali barcha kanallarga a'zo bo'lmadingiz! Tekshirib qayta urining.", show_alert=True)
-
 @dp.message(Command("admin"))
 async def admin_panel(message: types.Message):
-if user_id == int(ADMIN_ID):
-        await message.answer("👨‍💻 Admin panelga xush kelibsiz!", reply_markup=get_admin_keyboard())
-
+    user_id = message.from_user.id
+    if user_id == int(ADMIN_ID):
+        await message.answer("👨‍✈️ Admin panelga xush kelibsiz!", reply_markup=get_admin_keyboard())
 # --- USER FUNCTIONS ---
 @dp.message(F.text == "💰 Balans / Profil")
 async def show_profile(message: types.Message):
