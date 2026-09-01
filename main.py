@@ -17,7 +17,6 @@ PROVIDER_TOKEN = "398062629:TEST:999999999_F91D8F69C042267444B74CC0B3C747757EB0E
 ADMIN_ID = 1316308230
 KANAL_ID = -1003868075342
 INSTAGRAM_LINK = "https://instagram.com/kinouzb_hub"
-YOUTUBE_LINK = "https://youtube.com"  # O'zgaruvchi qo'shildi
 
 logging.basicConfig(level=logging.INFO)
 
@@ -61,17 +60,14 @@ async def init_db():
         await db.execute("CREATE TABLE IF NOT EXISTS requests (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, text TEXT)")
         await db.execute("CREATE TABLE IF NOT EXISTS purchased (user_id INTEGER, movie_code TEXT, PRIMARY KEY(user_id, movie_code))")
         await db.commit()
-
 # --- KLAVIATURALAR ---
 def get_channel_keyboard():
     buttons = [
-        [InlineKeyboardButton(text="📢 Telegram kanalga a'zo bo'lish", url="https://t.me")],
+        [InlineKeyboardButton(text="📢 Telegram kanalga a'zo bo'lish", url="https://t.me/kinouzb_hub")],
         [InlineKeyboardButton(text="📸 Instagram sahifamiz", url=INSTAGRAM_LINK)],
-        [InlineKeyboardButton(text="📺 YouTube kanalimiz", url=YOUTUBE_LINK)],
-        [InlineKeyboardButton(text="✅ Tasdiqlash / Tekshirish", callback_data="check_subs")]
+        [InlineKeyboardButton(text="🔄 Tasdiqlash / Tekshirish", callback_data="check_subs")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
 def get_admin_keyboard():
     buttons = [
         [KeyboardButton(text="📊 Statika"), KeyboardButton(text="📝 So'ralgan kinolar")],
@@ -88,7 +84,7 @@ def get_user_keyboard():
 
 # --- OBUNANI TEKSHIRISH ---
 async def check_subscription(user_id: int) -> bool:
-    if user_id == ADMIN_ID:
+    if user_id == int(ADMIN_ID):
         return True
     try:
         member = await bot.get_chat_member(chat_id=KANAL_ID, user_id=user_id)
@@ -125,7 +121,7 @@ async def check_callback(callback: types.CallbackQuery):
 
 @dp.message(Command("admin"))
 async def admin_panel(message: types.Message):
-    if message.from_user.id == ADMIN_ID:
+if user_id == int(ADMIN_ID):
         await message.answer("👨‍💻 Admin panelga xush kelibsiz!", reply_markup=get_admin_keyboard())
 
 # --- USER FUNCTIONS ---
@@ -213,9 +209,9 @@ async def success_payment_handler(message: types.Message):
     )
 
 # --- ADMIN STATISTIKA ---
-@dp.message(F.text == "📊 Statika")
+@dp.message(F.text.contains("Statika"))
 async def show_stats(message: types.Message):
-    if message.from_user.id == ADMIN_ID:
+if message.from_user.id == int(ADMIN_ID):
         async with aiosqlite.connect(DB_NAME) as db:
             async with db.execute("SELECT COUNT(*) FROM users") as cursor:
                 u_count = (await cursor.fetchone())[0]
@@ -233,10 +229,9 @@ async def show_stats(message: types.Message):
         
         await message.answer(f"📊 **Statistika:**\n\n👥 Foydalanuvchilar: {u_count} ta\n🎬 Kinolar: {m_count} ta", parse_mode="Markdown")
         await message.answer_document(document=input_file, caption="👥 Bot a'zolarining to'liq ro'yxati")
-
-@dp.message(F.text == "📝 So'ralgan kinolar")
+@dp.message(F.text.contains("So'ralgan kinolar"))
 async def show_requests(message: types.Message):
-    if message.from_user.id == ADMIN_ID:
+if message.from_user.id == int(ADMIN_ID):
         async with aiosqlite.connect(DB_NAME) as db:
             async with db.execute("SELECT text, COUNT(text) FROM requests GROUP BY text ORDER BY COUNT(text) DESC LIMIT 20") as cursor:
                 reqs = await cursor.fetchall()
@@ -249,9 +244,8 @@ async def show_requests(message: types.Message):
         await message.answer(text, parse_mode="Markdown")
 
 # --- KINO QO'SHISH ---
-@dp.message(F.text == "🎬 Kino qo'shish")
-async def add_movie_start(message: types.Message, state: FSMContext):
-    if message.from_user.id == ADMIN_ID:
+@dp.message(F.text.contains("Kino qo'shish"))
+    if message.from_user.id == int(ADMIN_ID):
         await message.answer("Kinoni video yoki fayl ko'rinishida yuboring:")
         await state.set_state(MovieState.waiting_for_file)
 
@@ -420,12 +414,30 @@ async def buy_movie_callback(callback: types.CallbackQuery):
         await callback.message.answer_video(video=m_file_id, caption=caption_text, protect_content=True, parse_mode="Markdown")
     else:
         await callback.message.answer_document(document=m_file_id, caption=caption_text, protect_content=True, parse_mode="Markdown")
-
 # --- START UP ---
+import os
+from aiohttp import web
+
+PORT = int(os.environ.get("PORT", 8080))
+
+async def handle(request):
+    return web.Response(text="Bot active!")
+
 async def main():
     await init_db()
     print("Bot muvaffaqiyatli ishga tushdi!")
+    
+    # Render Timed Out bermasligi uchun veb-server
+    app = web.Application()
+    app.router.add_get("/", handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    
+    # Bot polling
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
